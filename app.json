@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "TrainLiveInfo",
-    "slug": "TrainLiveInfo",
+    "name": "my-auth-app",
+    "slug": "my-auth-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "my-auth-app",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -13,14 +13,20 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.myfirstapp",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAqQctOdmAiL8aRbzga_c5uHgrKMZvVpvc"
+        }
       }
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "plugins": [
       "expo-router",
