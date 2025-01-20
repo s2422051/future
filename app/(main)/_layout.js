@@ -57,6 +57,17 @@ export default function AppLayout() {
           fontWeight: 'bold',
         },
       }}>
+        
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: 'マップ',
+          tabBarLabel: 'マップ',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="map" size={26} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="home"
         options={{
@@ -74,16 +85,6 @@ export default function AppLayout() {
           tabBarLabel: '時刻表',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="clock-outline" size={26} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="map"
-        options={{
-          title: 'マップ',
-          tabBarLabel: 'マップ',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="map" size={26} color={color} />
           ),
         }}
       />

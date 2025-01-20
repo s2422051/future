@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -9,26 +9,35 @@ import {
   ActivityIndicator, 
   Alert,
   SafeAreaView,
-  StatusBar 
+  StatusBar,
+  TextInput
 } from 'react-native';
 import { router } from 'expo-router';
-import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore'; // collectionを追加
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebase';
 
 const TRAIN_LINES = [
-{ id: '1', name: '山手線', company: 'JR東日本', image: require('../../assets/yamanote.png') },
-{ id: '2', name: '京浜東北線', company: 'JR東日本', image: require('../../assets/keihintouhoku.png') },
-{ id: '3', name: '中央線快速', company: 'JR東日本', image: require('../../assets/tyuou.png') },
-{ id: '4', name: '東海道線', company: 'JR東日本', image: require('../../assets/toukaidou.png') },
-{ id: '5', name: '武蔵野線', company: 'JR東日本', image: require('../../assets/musashino.png') },
-{ id: '6', name: '中央・総武線', company: 'JR東日本', image: require('../../assets/soubu.png') },
-{ id: '7', name: '湘南新宿ライン', company: 'JR東日本', image: require('../../assets/syounansinjuku.png') },
-{ id: '8', name: 'りんかい線', company: '東京臨海高速鉄道', image: require('../../assets/rinkai.jpeg') },
+  { id: '1', name: '山手線', company: 'JR東日本', image: require('../../assets/yamanote.png') },
+  { id: '2', name: '京浜東北線', company: 'JR東日本', image: require('../../assets/keihintouhoku.png') },
+  { id: '3', name: '中央線快速', company: 'JR東日本', image: require('../../assets/tyuou.png') },
+  { id: '4', name: '東海道線', company: 'JR東日本', image: require('../../assets/toukaidou.png') },
+  { id: '5', name: '武蔵野線', company: 'JR東日本', image: require('../../assets/musashino.png') },
+  { id: '6', name: '中央・総武線', company: 'JR東日本', image: require('../../assets/soubu.png') },
+  { id: '7', name: '湘南新宿ライン', company: 'JR東日本', image: require('../../assets/syounansinjuku.png') },
+  { id: '8', name: 'りんかい線', company: '東京臨海高速鉄道', image: require('../../assets/rinkai.jpeg') },
 ];
 
 export default function SelectScreen() {
   const [selectedTrains, setSelectedTrains] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredTrains = useMemo(() => {
+    return TRAIN_LINES.filter(train => 
+      train.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      train.company.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery]);
 
   const toggleSelection = useCallback((train) => {
     setSelectedTrains(prevSelected => {
@@ -53,10 +62,9 @@ export default function SelectScreen() {
         throw new Error('認証エラー: ユーザーがログインしていません');
       }
 
-      const favoritesRef = collection(db, 'favorites'); // コレクション参照を作成
+      const favoritesRef = collection(db, 'favorites');
       const timestamp = serverTimestamp();
 
-      // 一件ずつ処理する方式に変更
       for (const train of selectedTrains) {
         try {
           await setDoc(doc(favoritesRef, `${userId}_${train.id}`), {
@@ -67,7 +75,7 @@ export default function SelectScreen() {
             createdAt: timestamp,
             updatedAt: timestamp,
           });
-          console.log(`Added favorite: ${train.name}`); // デバッグログ
+          console.log(`Added favorite: ${train.name}`);
         } catch (err) {
           console.error(`Error adding ${train.name}:`, err);
           throw err;
@@ -145,8 +153,22 @@ export default function SelectScreen() {
       <StatusBar barStyle="dark-content" />
       <View style={styles.container}>
         <Text style={styles.title}>普段使う路線を選択</Text>
+        
+        <TextInput
+          placeholder="路線名または会社名で検索"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          clearButtonMode="while-editing"
+          style={{
+            backgroundColor: 'white',
+            padding: 12,
+            borderRadius: 10,
+            marginBottom: 16,
+          }}
+        />
+
         <FlatList
-          data={TRAIN_LINES}
+          data={filteredTrains}
           renderItem={renderTrainItem}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
