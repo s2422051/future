@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Text, Alert } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../src/config/firebase';
 import { router } from 'expo-router';
@@ -7,15 +7,55 @@ import { router } from 'expo-router';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('エラー', 'メールアドレスとパスワードを入力してください。');
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log("Successfully logged in:", userCredential.user);
-      router.replace('/(main)/home');
+      router.replace('/(main)/select');
     } catch (error) {
       console.error('Login error:', error);
-      alert('ログインに失敗しました: ' + error.message);
+      let errorMessage = 'ログインに失敗しました。';
+      
+      switch (error.code) {
+        case 'auth/invalid-email':
+          errorMessage = 'メールアドレスの形式が正しくありません。';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'このアカウントは無効になっています。';
+          break;
+        case 'auth/user-not-found':
+          errorMessage = 'アカウントが見つかりません。';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'パスワードが間違っています。';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'ネットワークエラーが発生しました。インターネット接続を確認してください。';
+          break;
+        default:
+          errorMessage = `エラーが発生しました: ${error.message}`;
+      }
+      
+      Alert.alert('エラー', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignupNavigation = () => {
+    try {
+      router.push('/(auth)/signup');
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('エラー', '新規登録ページへの遷移に失敗しました。');
     }
   };
 
@@ -32,6 +72,7 @@ export default function Login() {
           keyboardType="email-address"
           autoComplete="email"
           placeholderTextColor="#666"
+          editable={!isLoading}
         />
         <TextInput
           style={styles.input}
@@ -41,19 +82,24 @@ export default function Login() {
           secureTextEntry
           autoComplete="password"
           placeholderTextColor="#666"
+          editable={!isLoading}
         />
         <TouchableOpacity
-          style={styles.loginButton}
+          style={[styles.loginButton, isLoading && styles.disabledButton]}
           onPress={handleLogin}
+          disabled={isLoading}
         >
-          <Text style={styles.loginButtonText}>ログイン</Text>
+          <Text style={styles.loginButtonText}>
+            {isLoading ? 'ログイン中...' : 'ログイン'}
+          </Text>
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={styles.signupButton}
-          onPress={() => router.push('/(auth)/signup')}
+          style={[styles.signupButton, isLoading && styles.disabledButton]}
+          onPress={handleSignupNavigation}
+          disabled={isLoading}
         >
-          <Text style={styles.signupButtonText}>新規登録</Text>
+          <Text style={styles.signupButtonText}>アカウントをお持ちでない方（新規登録）</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -121,5 +167,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#cccccc',
+    borderColor: '#cccccc',
   },
 });

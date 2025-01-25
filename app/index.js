@@ -1,5 +1,6 @@
 import { Redirect } from 'expo-router';
 
 export default function Page() {
-  return <Redirect href="/(auth)/login" />;
+  // より明示的なパスを指定
+  return <Redirect href="/(auth)/login" replace />;
 }

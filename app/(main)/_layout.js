@@ -1,42 +1,10 @@
-import { Tabs, Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../src/config/firebase';
-import { useRouter, useSegments } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 
-export default function AppLayout() {
-  const [user, setUser] = useState(null);
-  const segments = useSegments();
-  const router = useRouter();
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      if (user) {
-        if (segments[0] === '(auth)') {
-          router.replace('/(main)/home');
-        }
-      } else {
-        router.replace('/(auth)/login');
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // ユーザーが認証されていない場合は認証画面のみ表示
-  if (!user) {
-    return (
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(auth)/login" options={{ headerShown: false }} />
-      </Stack>
-    );
-  }
-
-  // ユーザーが認証されている場合はタブナビゲーションを表示
+export default function MainLayout() {
   return (
     <Tabs
+      initialRouteName="select"
       screenOptions={{
         tabBarActiveTintColor: '#1976D2',
         tabBarInactiveTintColor: '#757575',
@@ -47,8 +15,13 @@ export default function AppLayout() {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#E0E0E0',
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
         },
-        headerShown: false,
+        headerShown: true,
         headerStyle: {
           backgroundColor: '#1976D2',
         },
@@ -56,34 +29,51 @@ export default function AppLayout() {
         headerTitleStyle: {
           fontWeight: 'bold',
         },
-      }}>
-        
+        tabBarLabelStyle: {
+          fontSize: 12,
+          marginTop: 2,
+        },
+      }}
+    >
       <Tabs.Screen
         name="map"
         options={{
-          title: 'マップ',
-          tabBarLabel: 'マップ',
-          tabBarIcon: ({ color, size }) => (
+          title: '路線図',
+          tabBarLabel: '路線図',
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="map" size={26} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
-        name="home"
+        name="train_info"
         options={{
           title: '運行情報',
           tabBarLabel: '運行情報',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="information-circle-outline" size={26} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="select"
+        options={{
+          title: '路線選択',
+          tabBarLabel: '路線選択',
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="train" size={26} color={color} />
           ),
         }}
       />
+
       <Tabs.Screen
         name="timetable"
         options={{
           title: '時刻表',
           tabBarLabel: '時刻表',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="clock-outline" size={26} color={color} />
           ),
         }}

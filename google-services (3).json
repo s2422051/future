@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "895555752528",
+    "project_id": "trainliveinfo-37bac",
+    "storage_bucket": "trainliveinfo-37bac.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:895555752528:android:93c7736cadd06ac3b63755",
+        "android_client_info": {
+          "package_name": "com.myfirstapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA109G6h5S4UfoR5yjV_CmX3mSaek4b81w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
