@@ -8,7 +8,7 @@ module.exports = {
   userInterfaceStyle: "automatic",
   splash: {
     image: "./assets/images/icon.png",
-    resizeMode: "contain",
+    resizeMode: "cover",
     backgroundColor: "#ffffff"
   },
   assetBundlePatterns: [
@@ -19,6 +19,11 @@ module.exports = {
     bundleIdentifier: "com.namboshunsuke.trainliveinfo",
     config: {
       usesNonExemptEncryption: false
+    },
+    splash: {
+      image: "./assets/images/icon.png",
+      resizeMode: "cover",
+      backgroundColor: "#ffffff"
     }
   },
   android: {
@@ -26,10 +31,15 @@ module.exports = {
       foregroundImage: "./assets/images/icon.png",
       backgroundColor: "#ffffff"
     },
-    package: "com.namboshunsuke.trainliveinfo"
+    package: "com.namboshunsuke.trainliveinfo",
+    splash: {
+      image: "./assets/images/icon.png",
+      resizeMode: "cover",
+      backgroundColor: "#ffffff"
+    }
   },
   web: {
-    favicon: "./assets/images/favicon.png",
+    favicon: "./assets/images/icon.png",
     bundler: "metro"
   },
   plugins: [
