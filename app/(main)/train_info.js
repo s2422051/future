@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -7,42 +7,69 @@ import {
   TouchableOpacity,
   Image 
 } from 'react-native';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebase';
 import { useRouter } from 'expo-router';
+// useFocusEffect と useCallback を追加
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
+
+const TRAIN_LINES = {
+  '1': { name: '山手線', image: require('../../assets/yamanote.png') },
+  '2': { name: '京浜東北線', image: require('../../assets/keihintouhoku.png') },
+  '3': { name: '中央線快速', image: require('../../assets/tyuou.png') },
+  '4': { name: '東海道線', image: require('../../assets/toukaidou.png') },
+  '5': { name: '武蔵野線', image: require('../../assets/musashino.png') },
+  '6': { name: '中央・総武線', image: require('../../assets/soubu.png') },
+  '7': { name: '湘南新宿ライン', image: require('../../assets/syounansinjuku.png') },
+  '8': { name: 'りんかい線', image: require('../../assets/rinkai.jpeg') },
+};
 
 const TrainInfo = () => {
   const [registeredLines, setRegisteredLines] = useState([]);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchRegisteredLines = async () => {
-      const userId = auth.currentUser?.uid;
-      if (!userId) return;
+  // useEffect を useFocusEffect に置き換え
+  useFocusEffect(
+    useCallback(() => {
+      const fetchRegisteredLines = async () => {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
 
-      const userLinesRef = collection(db, `users/${userId}/selectedLines`);
-      const snapshot = await getDocs(userLinesRef);
-      const lines = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setRegisteredLines(lines);
-    };
+        try {
+          const userLinesRef = collection(db, `users/${userId}/selectedLines`);
+          const snapshot = await getDocs(userLinesRef);
+          const lines = snapshot.docs.map(doc => {
+            const lineData = TRAIN_LINES[doc.id];
+            return {
+              id: doc.id,
+              name: lineData?.name || doc.data().name,
+              image: lineData?.image,
+              ...doc.data()
+            };
+          });
+          setRegisteredLines(lines);
+        } catch (error) {
+          console.error("Error fetching lines:", error);
+        }
+      };
 
-    fetchRegisteredLines();
-  }, []);
+      fetchRegisteredLines();
+    }, []) // 依存配列は空のまま
+  );
 
+  // 以下のコードは同じ
   const renderLineItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.lineItem}
-      onPress={() => router.push(`/line_detail?id=${item.lineId}`)}
+      onPress={() => router.push(`/line_detail?id=${item.id}`)}
     >
       <Image 
-        source={item.imageUrl} 
+        source={item.image} 
         style={styles.lineImage}
       />
       <View style={styles.lineInfo}>
-        <Text style={styles.lineName}>{item.lineName}</Text>
+        <Text style={styles.lineName}>{item.name}</Text>
         <Text style={styles.lineStatus}>平常運転</Text>
       </View>
     </TouchableOpacity>
@@ -54,6 +81,9 @@ const TrainInfo = () => {
         data={registeredLines}
         renderItem={renderLineItem}
         keyExtractor={item => item.id}
+        ListHeaderComponent={
+          <Text style={styles.headerTitle}>登録路線一覧</Text>
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>
@@ -74,10 +104,17 @@ const TrainInfo = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    padding: 16,
+    color: '#333',
   },
   lineItem: {
     flexDirection: 'row',
@@ -87,6 +124,10 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 12,
     elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   lineImage: {
     width: 48,
@@ -100,6 +141,7 @@ const styles = StyleSheet.create({
   lineName: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#333',
   },
   lineStatus: {
     fontSize: 14,
