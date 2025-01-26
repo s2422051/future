@@ -5,9 +5,9 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import * as Location from 'expo-location';
 import styles from '../style/home_style';
+import { GOOGLE_MAPS_API_KEY } from '@env';
 
-// APIキーを直接定義
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDmEy7T0Vpxv3Dq427BaprLcVf58dTB4GU'; // ここにあなたのAPIキーを入れてください
+GOOGLE_MAPS_API_KEY = "AIzaSyCQOLAIwGfgdWOQCrOzuPsz9OrbS22lbu8"
 
 function HomeScreen() {
   const [currentLocation, setCurrentLocation] = useState(null);

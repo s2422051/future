@@ -19,7 +19,7 @@ export default function Login() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log("Successfully logged in:", userCredential.user);
-      router.replace('/(main)/select');
+      router.replace('/(main)/train_info');
     } catch (error) {
       console.error('Login error:', error);
       let errorMessage = 'ログインに失敗しました。';

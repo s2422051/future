@@ -18,12 +18,17 @@ module.exports = {
     supportsTablet: true,
     bundleIdentifier: "com.namboshunsuke.trainliveinfo",
     config: {
-      usesNonExemptEncryption: false
+      usesNonExemptEncryption: false,
+      googleMapsApiKey: "AIzaSyCQOLAIwGfgdWOQCrOzuPsz9OrbS22lbu8" // 追加
     },
     splash: {
       image: "./assets/images/icon.png",
       resizeMode: "cover",
       backgroundColor: "#ffffff"
+    },
+    infoPlist: { // 追加
+      NSLocationWhenInUseUsageDescription: "This app needs access to location when open to show your current location on the map.",
+      NSLocationAlwaysUsageDescription: "This app needs access to location when in the background to show your current location on the map."
     }
   },
   android: {
@@ -36,7 +41,16 @@ module.exports = {
       image: "./assets/images/icon.png",
       resizeMode: "cover",
       backgroundColor: "#ffffff"
-    }
+    },
+    config: { // 追加
+      googleMaps: {
+        apiKey: "AIzaSyCQOLAIwGfgdWOQCrOzuPsz9OrbS22lbu8"
+      }
+    },
+    permissions: [ // 追加
+      "ACCESS_COARSE_LOCATION",
+      "ACCESS_FINE_LOCATION"
+    ]
   },
   web: {
     favicon: "./assets/images/icon.png",

@@ -1,4 +1,4 @@
-package com.trainliveinfo
+package com.namboshunsuke.trainliveinfo
 
 import android.app.Application
 import android.content.res.Configuration

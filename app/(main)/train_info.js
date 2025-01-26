@@ -58,11 +58,17 @@ const TrainInfo = () => {
     }, []) // 依存配列は空のまま
   );
 
-  // 以下のコードは同じ
+
   const renderLineItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.lineItem}
-      onPress={() => router.push(`/line_detail?id=${item.id}`)}
+      onPress={() => router.push({
+        pathname: '/(details)/train_info_detail',
+        params: { 
+          lineName: item.name,
+          lineId: item.id
+        }
+      })}
     >
       <Image 
         source={item.image} 
@@ -70,7 +76,7 @@ const TrainInfo = () => {
       />
       <View style={styles.lineInfo}>
         <Text style={styles.lineName}>{item.name}</Text>
-        <Text style={styles.lineStatus}>平常運転</Text>
+        <Text style={styles.lineStatus}>自分で調べようね^^</Text>
       </View>
     </TouchableOpacity>
   );
