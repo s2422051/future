@@ -10,7 +10,6 @@ import {
 import { collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebase';
 import { useRouter } from 'expo-router';
-// useFocusEffect と useCallback を追加
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 
@@ -29,35 +28,43 @@ const TrainInfo = () => {
   const [registeredLines, setRegisteredLines] = useState([]);
   const router = useRouter();
 
-  // useEffect を useFocusEffect に置き換え
   useFocusEffect(
     useCallback(() => {
       const fetchRegisteredLines = async () => {
-        const userId = auth.currentUser?.uid;
-        if (!userId) return;
+        if (!auth.currentUser) return;
 
         try {
-          const userLinesRef = collection(db, `users/${userId}/selectedLines`);
-          const snapshot = await getDocs(userLinesRef);
-          const lines = snapshot.docs.map(doc => {
-            const lineData = TRAIN_LINES[doc.id];
-            return {
-              id: doc.id,
-              name: lineData?.name || doc.data().name,
-              image: lineData?.image,
-              ...doc.data()
-            };
+          // コレクションの参照を直接取得
+          const selectedLinesCollectionRef = collection(
+            db, 
+            'users', 
+            auth.currentUser.uid, 
+            'selectedLines'
+          );
+
+          const querySnapshot = await getDocs(selectedLinesCollectionRef);
+          const lines = [];
+
+          querySnapshot.forEach(doc => {
+            const lineId = doc.id;
+            if (TRAIN_LINES[lineId]) {
+              lines.push({
+                id: lineId,
+                ...TRAIN_LINES[lineId]
+              });
+            }
           });
+
+          console.log('Fetched lines:', lines); // デバッグ用
           setRegisteredLines(lines);
         } catch (error) {
-          console.error("Error fetching lines:", error);
+          console.error('Error fetching lines:', error);
         }
       };
 
       fetchRegisteredLines();
-    }, []) // 依存配列は空のまま
+    }, [])
   );
-
 
   const renderLineItem = ({ item }) => (
     <TouchableOpacity 
@@ -76,7 +83,10 @@ const TrainInfo = () => {
       />
       <View style={styles.lineInfo}>
         <Text style={styles.lineName}>{item.name}</Text>
-        <Text style={styles.lineStatus}>自分で調べようね^^</Text>
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
+          <Text style={styles.lineStatus}>平常運転</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -143,16 +153,27 @@ const styles = StyleSheet.create({
   lineInfo: {
     marginLeft: 16,
     flex: 1,
+    justifyContent: 'center',
   },
   lineName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
+    marginBottom: 4,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
   },
   lineStatus: {
     fontSize: 14,
     color: '#666',
-    marginTop: 4,
   },
   emptyContainer: {
     flex: 1,

@@ -4,8 +4,8 @@ import { View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import * as Location from 'expo-location';
-import styles from '../style/home_style';
 import { GOOGLE_MAPS_API_KEY } from '@env';
+import { StyleSheet } from 'react-native';
 
 GOOGLE_MAPS_API_KEY = "AIzaSyCQOLAIwGfgdWOQCrOzuPsz9OrbS22lbu8"
 
@@ -99,33 +99,6 @@ function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <GooglePlacesAutocomplete
-          placeholder='目的地を検索'
-          onPress={(data, details) => {
-            if (details && details.geometry) {
-              const location = {
-                latitude: details.geometry.location.lat,
-                longitude: details.geometry.location.lng,
-              };
-              setDestination(location);
-              getDirections(location);
-            }
-          }}
-          fetchDetails={true}
-          query={{
-            key: GOOGLE_MAPS_API_KEY,
-            language: 'ja',
-            components: 'country:jp',
-          }}
-          styles={{
-            container: styles.autocompleteContainer,
-            textInput: styles.searchInput,
-            listView: styles.searchListView,
-          }}
-        />
-      </View>
-
       <MapView
         style={styles.map}
         initialRegion={{
@@ -165,8 +138,80 @@ function HomeScreen() {
           />
         )}
       </MapView>
+
+      <View style={styles.searchContainer}>
+        <GooglePlacesAutocomplete
+          placeholder='目的地を検索'
+          onPress={(data, details) => {
+            if (details && details.geometry) {
+              const location = {
+                latitude: details.geometry.location.lat,
+                longitude: details.geometry.location.lng,
+              };
+              setDestination(location);
+              getDirections(location);
+            }
+          }}
+          fetchDetails={true}
+          query={{
+            key: GOOGLE_MAPS_API_KEY,
+            language: 'ja',
+            components: 'country:jp',
+          }}
+          styles={{
+            container: styles.autocompleteContainer,
+            textInput: styles.searchInput,
+            listView: styles.searchListView,
+          }}
+        />
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  map: {
+    flex: 1, // または width: '100%', height: '100%',
+    ...StyleSheet.absoluteFillObject, // 画面全体に地図を表示
+  },
+  searchContainer: {
+    position: 'absolute',
+    top: 40, // ステータスバーの高さを考慮
+    left: 10,
+    right: 10,
+    zIndex: 1,
+  },
+  autocompleteContainer: {
+    flex: 0,
+  },
+  searchInput: {
+    height: 45,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    paddingHorizontal: 15,
+    fontSize: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  searchListView: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginTop: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+});
 
 export default HomeScreen;

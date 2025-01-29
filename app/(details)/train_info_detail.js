@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,11 +8,21 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
-  Modal,
+  Modal
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { db } from '../../src/config/firebase';
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  onSnapshot,
+  collection 
+} from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sendLocalNotification } from '../../src/services/notifications';
 
 const TrainInfoDetail = () => {
   const params = useLocalSearchParams();
@@ -29,8 +39,7 @@ const TrainInfoDetail = () => {
   const [userVote, setUserVote] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedVote, setSelectedVote] = useState(null);
-
-  const voteLabels = ['平常', '一時停車\n~10分', '~30分', '30分\n以上', '運転\n見合せ'];
+  const [userId, setUserId] = useState(null);
 
   const [trainStatus] = useState({
     status: '平常運転',
@@ -39,45 +48,110 @@ const TrainInfoDetail = () => {
     lastUpdated: new Date().toLocaleString(),
   });
 
-  useEffect(() => {
-    loadVoteData();
-  }, []);
+  // 今日の日付を取得（YYYYMMDD形式）
+  const getToday = () => {
+    const date = new Date();
+    return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+  };
 
-  const loadVoteData = async () => {
+// train_info_detail.js の先頭付近に追加
+useEffect(() => {
+  // 通知の設定
+  const configureNotifications = async () => {
+    await requestNotificationPermissions();
+  };
+  
+  configureNotifications();
+}, []);
+
+  // ユーザーID初期化用のuseEffect
+useEffect(() => {
+  const initializeUser = async () => {
+    let id = await AsyncStorage.getItem('userId');
+    if (!id) {
+      id = Math.random().toString(36).substr(2, 9);
+      await AsyncStorage.setItem('userId', id);
+    }
+    setUserId(id);
+  };
+  initializeUser();
+  fetchVotes();
+}, []);
+
+// 遅延情報監視用のuseEffect
+useEffect(() => {
+  const delayVotesRef = doc(db, 'delayVotes', `rinkai_${getToday()}`);
+  
+  const unsubscribe = onSnapshot(delayVotesRef, (doc) => {
+    if (doc.exists()) {
+      const data = doc.data();
+      const votes = data.votes || {};
+      setVoteCounts(votes); // リアルタイムで投票数を更新
+      
+      // 異常状態のチェック
+      if (votes['運転\n見合せ'] > 0) {
+        console.log("運転見合せ通知をトリガー"); // デバッグログ
+        sendLocalNotification(
+          '⚠️ りんかい線運転見合わせ',
+          'りんかい線で運転見合わせが発生しています。'
+        );
+      } else {
+        const abnormalVotes = {
+          '一時停車\n~10分': votes['一時停車\n~10分'] || 0,
+          '~30分': votes['~30分'] || 0,
+          '30分\n以上': votes['30分\n以上'] || 0
+        };
+      
+        const hasAbnormalStatus = Object.values(abnormalVotes).some(count => count > 0);
+        
+        if (hasAbnormalStatus) {
+          console.log("遅延通知をトリガー", abnormalVotes); // デバッグログ
+          const delayStatus = Object.entries(abnormalVotes)
+            .filter(([_, count]) => count > 0)
+            .map(([status]) => status.replace('\n', ' '))
+            .join(', ');
+      
+          sendLocalNotification(
+            '遅延情報',
+            `りんかい線で${delayStatus}の遅延が報告されています。`
+          );
+        }
+      }
+    }
+  });
+
+  return () => unsubscribe();
+}, []);
+
+  // 投票データ取得
+  const fetchVotes = async () => {
     try {
-      const savedVote = await AsyncStorage.getItem('userVote');
-      const savedCounts = await AsyncStorage.getItem('voteCounts');
-      if (savedVote) setUserVote(JSON.parse(savedVote));
-      if (savedCounts) setVoteCounts(JSON.parse(savedCounts));
+      const docRef = doc(db, 'delayVotes', `rinkai_${getToday()}`);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        setVoteCounts(docSnap.data().votes);
+        // ユーザーの過去の投票を確認
+        const userVoteKey = `vote_rinkai_${getToday()}_${userId}`;
+        const previousVote = await AsyncStorage.getItem(userVoteKey);
+        if (previousVote) {
+          setUserVote(previousVote);
+        }
+      } else {
+        await setDoc(docRef, {
+          votes: voteCounts,
+          lastUpdated: new Date()
+        });
+      }
     } catch (error) {
-      console.error('データの読み込みに失敗しました:', error);
+      console.error("Error fetching votes: ", error);
     }
   };
 
-  const saveVoteData = async (newVote, newCounts) => {
-    try {
-      await AsyncStorage.setItem('userVote', JSON.stringify(newVote));
-      await AsyncStorage.setItem('voteCounts', JSON.stringify(newCounts));
-    } catch (error) {
-      console.error('データの保存に失敗しました:', error);
-    }
-  };
-
-  const onRefresh = useCallback(() => {
+  const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    loadVoteData();
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    fetchVotes().then(() => setRefreshing(false));
   }, []);
-
-  const handleBack = () => {
-    router.push('/train_info');
-  };
-
-  const handleDirectionChange = (direction) => {
-    setSelectedDirection(direction);
-  };
 
   const handleVotePress = (label) => {
     setSelectedVote(label);
@@ -85,22 +159,39 @@ const TrainInfoDetail = () => {
   };
 
   const handleVoteConfirm = async () => {
-    if (userVote === selectedVote) {
-      Alert.alert('エラー', 'すでに同じ選択肢に投票済みです。');
-      return;
-    }
+    try {
+      if (!userId) return;
 
-    const newCounts = { ...voteCounts };
-    if (userVote) {
-      newCounts[userVote]--;
+      const userVoteKey = `vote_rinkai_${getToday()}_${userId}`;
+      const previousVote = await AsyncStorage.getItem(userVoteKey);
+
+      if (previousVote === selectedVote) {
+        Alert.alert('エラー', 'すでに同じ選択肢に投票済みです。');
+        return;
+      }
+
+      const docRef = doc(db, 'delayVotes', `rinkai_${getToday()}`);
+      const newVotes = { ...voteCounts };
+
+      if (previousVote) {
+        newVotes[previousVote]--;
+      }
+      newVotes[selectedVote]++;
+
+      await updateDoc(docRef, {
+        votes: newVotes,
+        lastUpdated: new Date()
+      });
+
+      await AsyncStorage.setItem(userVoteKey, selectedVote);
+      setUserVote(selectedVote);
+      setVoteCounts(newVotes);
+      setShowConfirmModal(false);
+      Alert.alert('完了', '投票が完了しました！');
+    } catch (error) {
+      console.error("Error submitting vote: ", error);
+      Alert.alert('エラー', '投票に失敗しました。');
     }
-    newCounts[selectedVote]++;
-    
-    setVoteCounts(newCounts);
-    setUserVote(selectedVote);
-    await saveVoteData(selectedVote, newCounts);
-    setShowConfirmModal(false);
-    Alert.alert('完了', '投票が完了しました！');
   };
 
   const handleVoteCancel = async () => {
@@ -118,46 +209,37 @@ const TrainInfoDetail = () => {
           text: '取り消す',
           style: 'destructive',
           onPress: async () => {
-            const newCounts = { ...voteCounts };
-            newCounts[userVote]--;
-            setVoteCounts(newCounts);
-            setUserVote(null);
-            await saveVoteData(null, newCounts);
-            Alert.alert('完了', '投票を取り消しました。');
+            try {
+              const docRef = doc(db, 'delayVotes', `rinkai_${getToday()}`);
+              const newVotes = { ...voteCounts };
+              newVotes[userVote]--;
+
+              await updateDoc(docRef, {
+                votes: newVotes,
+                lastUpdated: new Date()
+              });
+
+              const userVoteKey = `vote_rinkai_${getToday()}_${userId}`;
+              await AsyncStorage.removeItem(userVoteKey);
+              setUserVote(null);
+              setVoteCounts(newVotes);
+              Alert.alert('完了', '投票を取り消しました。');
+            } catch (error) {
+              console.error("Error canceling vote: ", error);
+              Alert.alert('エラー', '投票の取り消しに失敗しました。');
+            }
           }
         }
       ]
     );
   };
 
-  const renderVoteButton = (label, index) => {
-    const isVoted = userVote === label;
-    return (
-      <TouchableOpacity 
-        key={index} 
-        style={styles.voteButton}
-        onPress={() => handleVotePress(label)}
-      >
-        <View style={[
-          styles.voteCircle,
-          isVoted && styles.voteCircleVoted
-        ]}>
-          <Text style={[
-            styles.voteLabel,
-            isVoted && styles.voteLabelVoted
-          ]}>
-            {label}
-          </Text>
-        </View>
-        <Text style={styles.voteCount}>{voteCounts[label]}</Text>
-      </TouchableOpacity>
-    );
-  };
+  // 前半のコードに続いて...
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.push('/train_info')} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>運行情報</Text>
@@ -180,10 +262,13 @@ const TrainInfoDetail = () => {
           <View style={styles.statusBox}>
             <Text style={styles.statusText}>{trainStatus.status}</Text>
             <Text style={styles.statusDetail}>
-              現在、事故・遅延に関する情報はありません。
+              {voteCounts['平常'] > Math.max(...Object.values(voteCounts).filter((v, i) => i !== 0)) 
+                ? '現在、事故・遅延に関する情報はありません。'
+                : '※利用者からの投票により遅延の可能性があります。'}
             </Text>
           </View>
         </View>
+
 
         <View style={styles.directionSection}>
           <View style={styles.directionButtons}>
@@ -192,7 +277,7 @@ const TrainInfoDetail = () => {
                 styles.directionButton,
                 selectedDirection === 'direction1' && styles.directionButtonActive
               ]}
-              onPress={() => handleDirectionChange('direction1')}
+              onPress={() => setSelectedDirection('direction1')}
             >
               <Text style={[
                 styles.directionText,
@@ -206,7 +291,7 @@ const TrainInfoDetail = () => {
                 styles.directionButton,
                 selectedDirection === 'direction2' && styles.directionButtonActive
               ]}
-              onPress={() => handleDirectionChange('direction2')}
+              onPress={() => setSelectedDirection('direction2')}
             >
               <Text style={[
                 styles.directionText,
@@ -215,14 +300,37 @@ const TrainInfoDetail = () => {
                 {trainStatus.direction2}
               </Text>
             </TouchableOpacity>
-            </View>
+          </View>
         </View>
 
         <View style={styles.votingSection}>
-          <Text style={styles.votingTitle}>今の運行状況は？ボタンを押して投票！</Text>
+          <Text style={styles.votingTitle}>今の運行状況は？</Text>
           <View style={styles.voteButtons}>
-            {voteLabels.map((label, index) => renderVoteButton(label, index))}
+            {Object.entries(voteCounts).map(([type, count]) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.voteCircle,
+                  userVote === type && styles.voteCircleVoted
+                ]}
+                onPress={() => handleVotePress(type)}
+              >
+                <Text style={[
+                  styles.voteLabel,
+                  userVote === type && styles.voteLabelVoted
+                ]}>
+                  {type}
+                </Text>
+                <Text style={[
+                  styles.voteCount,
+                  userVote === type && styles.voteCountVoted
+                ]}>
+                  {count}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
+
           {userVote && (
             <TouchableOpacity 
               style={styles.cancelButton}
@@ -234,7 +342,7 @@ const TrainInfoDetail = () => {
         </View>
 
         <Text style={styles.updateTime}>
-          画面を引き下げて最新に更新({trainStatus.lastUpdated}更新)
+          最終更新: {trainStatus.lastUpdated}
         </Text>
       </ScrollView>
 
@@ -268,195 +376,237 @@ const TrainInfoDetail = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f5f5f5',
+  },
+  content: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1976D2',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    backgroundColor: '#00479d',
+    padding: 15,
+    paddingTop: 50,
   },
   backButton: {
     width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  content: {
-    flex: 1,
+  headerTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   lineTitleContainer: {
-    padding: 16,
-  },
-  lineSubtitle: {
-    fontSize: 12,
-    color: '#666',
+    backgroundColor: '#00479d',
+    padding: 20,
+    alignItems: 'center',
   },
   lineTitle: {
+    color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
-    marginTop: 4,
+  },
+  lineSubtitle: {
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 5,
   },
   statusSection: {
-    backgroundColor: '#f5f5f5',
-    padding: 16,
+    backgroundColor: '#fff',
+    margin: 15,
+    borderRadius: 12,
+    padding: 15,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    color: '#666',
+    marginBottom: 10,
   },
   statusBox: {
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: '#f8f8f8',
+    padding: 15,
     borderRadius: 8,
   },
   statusText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#4CAF50',
-    marginBottom: 8,
+    color: '#00479d',
+    marginBottom: 5,
   },
   statusDetail: {
     color: '#666',
+    fontSize: 14,
   },
   directionSection: {
-    padding: 16,
+    margin: 15,
   },
   directionButtons: {
     flexDirection: 'row',
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#1976D2',
+    justifyContent: 'space-between',
+    gap: 10,
   },
   directionButton: {
     flex: 1,
-    padding: 12,
+    padding: 15,
+    backgroundColor: '#fff',
+    borderRadius: 8,
     alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   directionButtonActive: {
-    backgroundColor: '#1976D2',
+    backgroundColor: '#00479d',
   },
   directionText: {
-    color: '#1976D2',
+    color: '#00479d',
+    fontWeight: '600',
   },
   directionTextActive: {
     color: '#fff',
-  },
-  votingSection: {
-    padding: 16,
-  },
-  votingTitle: {
+},
+votingSection: {
+    margin: 15,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 15,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+},
+votingTitle: {
     fontSize: 16,
-    marginBottom: 16,
-  },
-  voteButtons: {
+    color: '#666',
+    marginBottom: 15,
+    textAlign: 'center',
+},
+voteButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     flexWrap: 'wrap',
-    paddingHorizontal: 8,
-  },
-  voteButton: {
-    alignItems: 'center',
-    marginHorizontal: 8,
-    marginBottom: 16,
-  },
-  voteCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#f5f5f5',
+    justifyContent: 'space-around',
+    gap: 15,
+},
+voteCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  voteCircleVoted: {
-    backgroundColor: '#1976D2',
-  },
-  voteLabel: {
-    fontSize: 12,
+    borderWidth: 1,
+    borderColor: '#00479d',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+},
+voteCircleVoted: {
+    backgroundColor: '#00479d',
+},
+voteLabel: {
     textAlign: 'center',
-  },
-  voteLabelVoted: {
+    fontSize: 14,
+    color: '#00479d',
+    marginBottom: 5,
+},
+voteLabelVoted: {
     color: '#fff',
-  },
-  voteCount: {
-    fontSize: 12,
-    color: '#666',
-  },
-  updateTime: {
+},
+voteCount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#00479d',
+},
+voteCountVoted: {
+    color: '#fff',
+},
+cancelButton: {
+    marginTop: 20,
+    padding: 12,
+    backgroundColor: '#ff4444',
+    borderRadius: 8,
+    alignItems: 'center',
+},
+cancelButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+},
+updateTime: {
     textAlign: 'center',
     color: '#666',
-    padding: 16,
     fontSize: 12,
-  },
-  modalOverlay: {
+    marginTop: 20,
+    marginBottom: 30,
+},
+modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: 'white',
+},
+modalContent: {
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
     width: '80%',
-    alignItems: 'center',
-  },
-  modalTitle: {
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+},
+modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  modalText: {
+    marginBottom: 15,
+    textAlign: 'center',
+    color: '#00479d',
+},
+modalText: {
     fontSize: 16,
     marginBottom: 20,
     textAlign: 'center',
-  },
-  modalButtons: {
+    color: '#333',
+},
+modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
-  },
-  modalButton: {
+    gap: 10,
+},
+modalButton: {
     flex: 1,
     padding: 12,
     borderRadius: 8,
-    marginHorizontal: 8,
     alignItems: 'center',
-  },
-  modalButtonCancel: {
-    backgroundColor: '#999',
-  },
-  modalButtonConfirm: {
-    backgroundColor: '#1976D2',
-  },
-  modalButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  cancelButton: {
-    marginTop: 20,
-    padding: 12,
-    backgroundColor: '#ff6b6b',
-    borderRadius: 8,
-    alignItems: 'center',
-    marginHorizontal: 16,
-  },
-  cancelButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  }
+},
+modalButtonCancel: {
+    backgroundColor: '#ddd',
+},
+modalButtonConfirm: {
+    backgroundColor: '#00479d',
+},
+modalButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+},
 });
 
 export default TrainInfoDetail;

@@ -13,6 +13,7 @@ const firebaseConfig = {
   measurementId: "G-NM4KNEJFQE"
 };
 
+
 // Firebase初期化
 const app = initializeApp(firebaseConfig);
 
@@ -25,6 +26,4 @@ const auth = initializeAuth(app, {
 const db = getFirestore(app);
 
 export { auth, db };
-
-
 

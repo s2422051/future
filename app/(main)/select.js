@@ -12,9 +12,8 @@ import {
   StatusBar,
   TextInput
 } from 'react-native';
-import { collection, doc, setDoc, deleteDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../src/config/firebase';
-import { saveUserLine, getUserLines } from '../../src/services/firestore';
 
 const TRAIN_LINES = [
   { id: '1', name: '山手線', company: 'JR東日本', image: require('../../assets/yamanote.png') },
@@ -41,11 +40,16 @@ export default function SelectScreen() {
 
       setIsLoading(true);
       try {
-        const lines = await getUserLines(user.uid);
-        const fullLineData = lines.map(line => 
-          TRAIN_LINES.find(t => t.id === line.id)
-        ).filter(Boolean);
-        setRegisteredLines(fullLineData);
+        const selectedLinesRef = collection(db, `users/${user.uid}/selectedLines`);
+        const snapshot = await getDocs(selectedLinesRef);
+        
+        const lines = snapshot.docs.map(doc => {
+          const lineId = doc.id;
+          const trainLine = TRAIN_LINES.find(t => t.id === lineId);
+          return trainLine || null;
+        }).filter(Boolean);
+        
+        setRegisteredLines(lines);
       } catch (error) {
         console.error("Error loading lines:", error);
         Alert.alert("エラー", "路線情報の取得に失敗しました");
@@ -77,93 +81,95 @@ export default function SelectScreen() {
     };
   }, [searchQuery, registeredLines]);
 
-  // handleLineRegistration と handleLineDeregistration を追加
-const handleLineRegistration = (line) => {
-  Alert.alert(
-    "路線登録の確認",
-    `${line.name}（${line.company}）を登録しますか？`,
-    [
-      {
-        text: "キャンセル",
-        style: "cancel"
-      },
-      {
-        text: "登録する",
-        onPress: () => toggleLineRegistration(line, true)
-      }
-    ]
-  );
-};
+  const handleLineRegistration = (line) => {
+    Alert.alert(
+      "路線登録の確認",
+      `${line.name}（${line.company}）を登録しますか？`,
+      [
+        {
+          text: "キャンセル",
+          style: "cancel"
+        },
+        {
+          text: "登録する",
+          onPress: () => toggleLineRegistration(line, true)
+        }
+      ]
+    );
+  };
 
-const handleLineDeregistration = (line) => {
-  Alert.alert(
-    "登録解除の確認",
-    `${line.name}（${line.company}）の登録を解除しますか？`,
-    [
-      {
-        text: "キャンセル",
-        style: "cancel"
-      },
-      {
-        text: "解除する",
-        style: "destructive",
-        onPress: () => toggleLineRegistration(line, false)
-      }
-    ]
-  );
-};
+  const handleLineDeregistration = (line) => {
+    Alert.alert(
+      "登録解除の確認",
+      `${line.name}（${line.company}）の登録を解除しますか？`,
+      [
+        {
+          text: "キャンセル",
+          style: "cancel"
+        },
+        {
+          text: "解除する",
+          style: "destructive",
+          onPress: () => toggleLineRegistration(line, false)
+        }
+      ]
+    );
+  };
 
-// 既存の toggleLineRegistration を以下に修正
-const toggleLineRegistration = async (line, shouldRegister) => {
-  const user = auth.currentUser;
-  if (!user) {
-    Alert.alert("エラー", "ログインが必要です");
-    return;
-  }
-
-  setIsLoading(true);
-  try {
-    const lineRef = doc(db, `users/${user.uid}/selectedLines/${line.id}`);
-    
-    if (!shouldRegister) {
-      await deleteDoc(lineRef);
-      setRegisteredLines(prev => prev.filter(l => l.id !== line.id));
-    } else {
-      await saveUserLine(user.uid, {
-        id: line.id,
-        name: line.name,
-        company: line.company
-      });
-      setRegisteredLines(prev => [...prev, line]);
+  const toggleLineRegistration = async (line, shouldRegister) => {
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert("エラー", "ログインが必要です");
+      return;
     }
-  } catch (error) {
-    console.error("Error:", error);
-    Alert.alert("エラー", "操作に失敗しました");
-  } finally {
-    setIsLoading(false);
-  }
-};
+
+    setIsLoading(true);
+    try {
+      const lineRef = doc(db, 'users', user.uid, 'selectedLines', line.id);
+      
+      if (shouldRegister) {
+        await setDoc(lineRef, {
+          name: line.name,
+          company: line.company,
+          timestamp: new Date()
+        });
+        setRegisteredLines(prev => [...prev, line]);
+      } else {
+        await deleteDoc(lineRef);
+        setRegisteredLines(prev => prev.filter(l => l.id !== line.id));
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      Alert.alert("エラー", "操作に失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 残りのコードは変更なし
   const renderLineItem = useCallback(({ item, isRegistered }) => (
     <Pressable
-    key={item.id}
-    style={[styles.lineItem, isRegistered && styles.registeredItem]}
-    onPress={() => isRegistered ? 
-      handleLineDeregistration(item) : 
-      handleLineRegistration(item)
-    }
-  >
-    <Image source={item.image} style={styles.lineImage} />
-    <View style={styles.lineInfo}>
-      <Text style={styles.lineName}>{item.name}</Text>
-      <Text style={styles.company}>{item.company}</Text>
-    </View>
-    <View style={[styles.statusBadge, isRegistered && styles.registeredBadge]}>
-      <Text style={[styles.statusText, isRegistered && styles.registeredStatusText]}>
-        {isRegistered ? '登録済み' : '未登録'}
-      </Text>
-    </View>
-  </Pressable>
-), []);
+      key={item.id}
+      style={[styles.lineItem, isRegistered && styles.registeredItem]}
+      onPress={() => isRegistered ? 
+        handleLineDeregistration(item) : 
+        handleLineRegistration(item)
+      }
+    >
+      <Image source={item.image} style={styles.lineImage} />
+      <View style={styles.lineInfo}>
+        <Text style={styles.lineName}>{item.name}</Text>
+        <Text style={styles.company}>{item.company}</Text>
+      </View>
+      <View style={[styles.statusBadge, isRegistered && styles.registeredBadge]}>
+        <Text style={[styles.statusText, isRegistered && styles.registeredStatusText]}>
+          {isRegistered ? '登録済み' : '未登録'}
+        </Text>
+      </View>
+    </Pressable>
+  ), []);
+
+  // ... 残りのコードとスタイルは同じ ...
 
   const renderSections = () => (
     <FlatList

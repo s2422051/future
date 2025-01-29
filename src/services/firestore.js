@@ -1,32 +1,27 @@
-import { doc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { doc, updateDoc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 
-export const saveUserLine = async (userId, lineData) => {
+// 投票データを更新する関数
+export const updateVoteCount = async (trainId, newCount) => {
+  const voteRef = doc(db, 'votes', trainId);
   try {
-    const userLineRef = doc(db, `users/${userId}/selectedLines/${lineData.id}`);
-    await setDoc(userLineRef, {
-      id: lineData.id,
-      name: lineData.name,
-      company: lineData.company,
-      selectedAt: new Date()
-    });
-    return true;
+    const docSnap = await getDoc(voteRef);
+    if (docSnap.exists()) {
+      await updateDoc(voteRef, { count: newCount });
+    } else {
+      await setDoc(voteRef, { count: newCount });
+    }
   } catch (error) {
-    console.error('Error saving line:', error);
-    return false;
+    console.error("Error updating vote count: ", error);
   }
 };
 
-export const getUserLines = async (userId) => {
-  try {
-    const linesRef = collection(db, `users/${userId}/selectedLines`);
-    const snapshot = await getDocs(linesRef);
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-  } catch (error) {
-    console.error('Error getting lines:', error);
-    return [];
-  }
+// 投票をリアルタイムで監視する関数
+export const subscribeToVotes = (trainId, callback) => {
+  const voteRef = doc(db, 'votes', trainId);
+  return onSnapshot(voteRef, (doc) => {
+    if (doc.exists()) {
+      callback(doc.data().count);
+    }
+  });
 };

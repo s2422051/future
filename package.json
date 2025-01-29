@@ -18,6 +18,8 @@
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/geolocation": "^3.4.0",
+    "@react-native-firebase/app": "^21.7.1",
+    "@react-native-firebase/firestore": "^21.7.1",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "@react-navigation/stack": "^7.1.1",
@@ -27,10 +29,12 @@
     "expo-blur": "14.0.3",
     "expo-constants": "~17.0.4",
     "expo-dev-client": "~5.0.10",
+    "expo-device": "~7.0.2",
     "expo-font": "~13.0.3",
     "expo-haptics": "~14.0.1",
     "expo-linking": "~7.0.4",
     "expo-location": "~18.0.5",
+    "expo-notifications": "~0.29.13",
     "expo-router": "~4.0.17",
     "expo-splash-screen": "~0.29.21",
     "expo-status-bar": "~2.0.1",
@@ -69,13 +73,32 @@
         {
           "locationAlwaysAndWhenInUsePermission": "アプリがあなたの位置情報を使用することを許可しますか？"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ffffff"
+        }
       ]
     ],
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#ffffff",
+      "androidMode": "default",
+      "androidCollapsedTitle": "りんかい線運行情報",
+      "iosDisplayInForeground": true, 
+      "iosDisplayInForegroundPriority": 5
+    },
+
     "android": {
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "NOTIFICATIONS",
+        "VIBRATE"
       ],
+      "useNextNotificationsApi": true,
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyCQOLAIwGfgdWOQCrOzuPsz9OrbS22lbu8"

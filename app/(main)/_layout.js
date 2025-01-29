@@ -38,8 +38,8 @@ export default function MainLayout() {
       <Tabs.Screen
         name="map"
         options={{
-          title: '路線図',
-          tabBarLabel: '路線図',
+          title: 'マップ',
+          tabBarLabel: 'マップ',
           tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="map" size={26} color={color} />
           ),
@@ -60,8 +60,8 @@ export default function MainLayout() {
       <Tabs.Screen
         name="select"
         options={{
-          title: '路線選択',
-          tabBarLabel: '路線選択',
+          title: '路線登録',
+          tabBarLabel: '路線登録',
           tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="train" size={26} color={color} />
           ),

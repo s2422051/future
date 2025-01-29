@@ -9,16 +9,27 @@
       "distribution": "internal",
       "android": {
         "gradleCommand": ":app:assembleDebug",
-        "withoutCredentials": true
+        "withoutCredentials": true,
+        "buildType": "apk"
       },
       "ios": {
         "buildConfiguration": "Debug"
+      },
+      "notification": {
+        "icon": "./assets/notification-icon.png"
       }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     },
-    "production": {}
+    "production": {
+      "android": {
+        "buildType": "apk"
+      }
+    }
   },
   "submit": {
     "production": {}
